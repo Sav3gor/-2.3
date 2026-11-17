@@ -1,58 +1,84 @@
 export const tasks = [
   {
-    id: 1,
-    title: 'Створити структуру проєкту',
-    description: 'Підготувати каталоги та файли TaskFlow',
-    status: 'done',
-    completed: true,
-    priority: 'high',
+    "id": 1,
+    "title": "Створити макет картки завдання",
+    "description": "Розробити компонент TaskCard для TaskFlow.",
+    "status": "todo",
+    "priority": "high",
+    "dueDate": "2026-10-23"
   },
   {
-    id: 2,
-    title: 'Налаштувати Framework7',
-    description: 'Підключити мобільні компоненти інтерфейсу',
-    status: 'done',
-    completed: true,
-    priority: 'medium',
+    "id": 2,
+    "title": "Налаштувати навігацію",
+    "description": "Реалізувати Navbar, Toolbar та переходи.",
+    "status": "done",
+    "priority": "medium",
+    "dueDate": "2026-10-24"
   },
   {
-    id: 3,
-    title: 'Реалізувати картку завдання',
-    description: 'Створити компонент TaskCard',
-    status: 'done',
-    completed: true,
-    priority: 'medium',
+    "id": 3,
+    "title": "Створити індикатор статусу",
+    "description": "Розробити компонент StatusBadge.",
+    "status": "progress",
+    "priority": "high",
+    "dueDate": "2026-10-25"
   },
   {
-    id: 4,
-    title: 'Перевірити PWA',
-    description: 'Зібрати та встановити застосунок',
-    status: 'todo',
-    completed: false,
-    priority: 'low',
-  },
-    {
-    id: 5,
-    title: 'Налаштувати нижню навігацію',
-    description: 'Додати переходи між сторінками TaskFlow',
-    status: 'done',
-    completed: true,
-    priority: 'high',
+    "id": 4,
+    "title": "Реалізувати фільтрацію завдань",
+    "description": "Додати фільтри за статусом і пріоритетом.",
+    "status": "todo",
+    "priority": "medium",
+    "dueDate": "2026-10-27"
   },
   {
-    id: 6,
-    title: 'Перевірити production-збірку',
-    description: 'Запустити npm run build та перевірити результат',
-    status: 'progress',
-    completed: false,
-    priority: 'medium',
+    "id": 5,
+    "title": "Створити адаптивний інтерфейс",
+    "description": "Налаштувати вигляд на різних екранах.",
+    "status": "progress",
+    "priority": "low",
+    "dueDate": "2026-10-29"
   },
   {
-    id: 7,
-    title: 'Підготувати звіт КП 2/4',
-    description: 'Оформити результати роботи та скріншоти',
-    status: 'todo',
-    completed: false,
-    priority: 'low',
+    "id": 6,
+    "title": "Підготувати структуру PWA",
+    "description": "Налаштувати початковий проєкт.",
+    "status": "done",
+    "priority": "low",
+    "dueDate": "2026-10-30"
   },
+  {
+    "id": 7,
+    "title": "Перевірити роботу без мережі",
+    "description": "Протестувати кешування ресурсів PWA.",
+    "status": "todo",
+    "priority": "low",
+    "dueDate": "2026-11-18"
+  },
+  {
+    "id": 8,
+    "title": "Підготувати звіт",
+    "description": "Описати компоненти та результати перевірок.",
+    "status": "progress",
+    "priority": "medium",
+    "dueDate": "2026-11-19"
+  },
+  {
+    "id": 9,
+    "title": "Налаштувати іконки застосунку",
+    "description": "Підготувати іконки для встановлення PWA.",
+    "status": "done",
+    "priority": "high",
+    "dueDate": "2026-11-20"
+  },
+  {
+    "id": 10,
+    "title": "Перевірити доступність",
+    "description": "Перевірити керування клавіатурою та підписи кнопок.",
+    "status": "todo",
+    "priority": "medium",
+    "dueDate": "2026-11-21"
+  }
 ];
+
+export default tasks;

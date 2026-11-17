@@ -1,5 +1,36 @@
-# Vue 3 + Vite
+# TaskFlow — практична робота КП 2.5
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+PWA на Vue 3, Vite та Framework7. Наявні маршрути `/`, `/tasks/`, `/about/`, AppTabbar і реєстрацію Framework7 збережено.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Запуск
+
+```bash
+cd '/home/egor/КПП 2.2/my-app'
+npm ci
+npm run dev
+```
+
+## Перевірка
+
+```bash
+npm test
+npm run build
+npm run preview
+```
+
+Тести використовують `node:module.registerHooks` (Node.js ≥ 22.15 або ≥ 23.5); перевірено на Node.js 26.13.1. Vue-компоненти монтуються у тестовому renderer з підміною оболонок Framework7. Це перевірка логіки та реактивності, а візуальний вигляд і навігацію слід перевіряти в браузері.
+
+## Можливості
+
+- Картки з українською датою, статусом і пріоритетом; зміни через Props/Emits.
+- Цикли статусів `todo → progress → done → todo` і пріоритетів `low → medium → high → low`.
+- Спільне реактивне сховище з перевіркою допустимих значень.
+- Сумісні фільтри статусу та пріоритету, лічильник і порожній стан.
+- Сортування від високого або низького пріоритету та початковий порядок.
+- Чотири показники статистики, відсоток виконання і три актуальні завдання.
+- Подія `task-select` при натисканні назви; панель обраного завдання на обох сторінках.
+- Адаптивна сітка і доступні кнопки фільтрів.
+
+Виконано всі шість додаткових завдань. Додані записи № 7–10: початкова статистика **10 / 3 / 3 / 4**, виконано **30%**. Шість базових записів залишено відповідно до PDF. Стан зберігається в пам’яті; перезавантаження відновлює демонстраційні дані.
+
+Звіт і відповіді на контрольні запитання: [../docs/report-kp-2-5.md](../docs/report-kp-2-5.md). У звіті зазначено обмеження перевірки й перелік потрібних скріншотів.
