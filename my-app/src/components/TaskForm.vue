@@ -56,11 +56,11 @@ function clearForm() {
       </div>
       <div class="tf4-field tf4-field--wide">
         <label for="tf4-description">Опис</label>
-        <textarea id="tf4-description" v-model.trim="form.description" rows="3" maxlength="300"
+        <textarea id="tf4-description" v-model.trim="form.description" rows="3" maxlength="500"
           placeholder="Що потрібно зробити?"
           :aria-invalid="showErrors && !!errors.description"
           :aria-describedby="`tf4-description-help${showErrors && errors.description ? ' tf4-description-error' : ''}`"></textarea>
-        <small id="tf4-description-help">Необов’язкове поле. Залишилося: {{ 300 - form.description.length }}/300</small>
+        <small id="tf4-description-help">Необов’язкове поле. Залишилося: {{ 500 - form.description.length }}/500</small>
         <p v-if="showErrors && errors.description" id="tf4-description-error" class="tf4-error" role="alert">{{ errors.description }}</p>
       </div>
       <div class="tf4-field">
@@ -91,12 +91,12 @@ function clearForm() {
         <p v-if="showErrors && errors.category" id="tf4-category-error" class="tf4-error" role="alert">{{ errors.category }}</p>
       </div>
       <div class="tf4-field">
-        <label for="tf4-date">Дата завершення *</label>
-        <input id="tf4-date" v-model="form.dueDate" type="date" required
+        <label for="tf4-date">Дата завершення</label>
+        <input id="tf4-date" v-model="form.dueDate" type="date"
           :min="isEditing ? undefined : localDate()"
           :aria-invalid="showErrors && !!errors.dueDate"
           :aria-describedby="`tf4-date-help${showErrors && errors.dueDate ? ' tf4-date-error' : ''}`" />
-        <small id="tf4-date-help">{{ isEditing ? 'Попередній термін можна залишити; новий має бути не раніше сьогодні.' : 'Сьогоднішня або майбутня дата.' }}</small>
+        <small id="tf4-date-help">{{ isEditing ? 'Попередній термін можна залишити; новий має бути не раніше сьогодні.' : 'Необов’язково. Сьогоднішня або майбутня дата.' }}</small>
         <p v-if="showErrors && errors.dueDate" id="tf4-date-error" class="tf4-error" role="alert">{{ errors.dueDate }}</p>
       </div>
       <div class="tf4-preview tf4-field--wide" aria-live="polite">

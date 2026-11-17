@@ -28,12 +28,12 @@ export function validateTask(data, { originalTask = null, tasks = [], today = lo
   else if (!originalTask && tasks.some(task => task.title.trim().toLocaleLowerCase('uk-UA') === title.toLocaleLowerCase('uk-UA'))) {
     errors.title = 'Завдання з такою назвою вже існує.'
   }
-  if (description.length > 300) errors.description = 'Опис не повинен перевищувати 300 символів.'
+  if (description.length > 500) errors.description = 'Опис не повинен перевищувати 500 символів.'
   if (!Object.hasOwn(statusLabels, data?.status)) errors.status = 'Оберіть коректний статус.'
   if (!Object.hasOwn(priorityLabels, data?.priority)) errors.priority = 'Оберіть коректний пріоритет.'
   if (!Object.hasOwn(categoryLabels, data?.category)) errors.category = 'Оберіть коректну категорію.'
-  if (!isValidDate(data?.dueDate)) errors.dueDate = 'Укажіть коректну дату завершення.'
-  else if (data.dueDate < today && data.dueDate !== originalTask?.dueDate) {
+  if (data?.dueDate !== '' && !isValidDate(data?.dueDate)) errors.dueDate = 'Укажіть коректну дату завершення.'
+  else if (data.dueDate && data.dueDate < today && data.dueDate !== originalTask?.dueDate) {
     errors.dueDate = 'Оберіть сьогоднішню або майбутню дату. Попередній термін можна залишити без змін.'
   }
   return errors

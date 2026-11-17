@@ -14,11 +14,12 @@ registerHooks({
   load(url, context, next) {
     if (!url.endsWith('.vue')) return next(url, context);
     const { descriptor } = parse(readFileSync(new URL(url), 'utf8'));
-    return { format: 'module', source: compileScript(descriptor, { id: url, inlineTemplate: true }).content, shortCircuit: true };
+    return { format: 'module', source: compileScript(descriptor, { id: url, inlineTemplate: true, templateOptions: { compilerOptions: { hoistStatic: false } } }).content, shortCircuit: true };
   },
 });
-const { taskState, addTask, updateTask, setTaskStatus, setTaskPriority } = await import('../src/store/tasks.js');
+const { taskState, addTask, updateTask, deleteTask, setTaskStatus, setTaskPriority } = await import('../src/store/tasks.js');
 const { default: initialTasks } = await import('../src/data/tasks.js');
+const { default: TaskListControls } = await import('../src/components/TaskListControls.vue');
 const { default: TaskForm } = await import('../src/components/TaskForm.vue');
 const { localDate, isValidDate, validateTask } = await import('../src/utils/task-validation.js');
 globalThis.Document = class Document {};
@@ -88,21 +89,18 @@ test('TaskFlow: store, Props/Emits, filters, sorting and shared statistics', asy
   assert.deepEqual(stats(), [10,3,3,4]);
   assert.equal(cards(home.root).length, 3);
   assert.equal(cards(tasks.root).length, 10);
-  await click(button(tasks.root, 'У роботі')); await click(button(tasks.root, 'Високий'));
+  await model(tasks.root, 'tf5-status', 'progress'); await model(tasks.root, 'tf5-priority', 'high');
   assert.deepEqual(cards(tasks.root).map(n => n.props['data-task-id']), [3]);
   await click(button(tasks.root, 'Завершити'));
   assert.equal(cards(tasks.root).length, 0);
   assert.ok(text(tasks.root).includes('За обраними фільтрами завдань не знайдено.'));
   assert.deepEqual(stats(), [10,2,4,4]);
   assert.ok(text(home.root).includes('40%'));
-  const filterGroups = all(tasks.root, n => n.props?.class === 'tf3-filter-buttons');
-  for (const group of filterGroups) await click(button(group, 'Усі'));
-  const select = all(tasks.root, n => n.tag === 'select')[0];
-  // v-model on native select uses a DOM directive; update the component model through its generated handler.
-  select.props['onUpdate:modelValue']('high'); await nextTick();
-  assert.deepEqual(cards(tasks.root).slice(0,3).map(n => n.props['data-task-id']), [1,3,9]);
-  select.props['onUpdate:modelValue']('low'); await nextTick();
-  assert.deepEqual(cards(tasks.root).slice(0,3).map(n => n.props['data-task-id']), [5,6,7]);
+  await click(button(tasks.root, 'Скинути фільтри'));
+  await model(tasks.root, 'tf5-sort', 'priority');
+  assert.deepEqual(cards(tasks.root).slice(0,3).map(n => n.props['data-task-id']), [9,3,1]);
+  await model(tasks.root, 'tf5-sort', 'priorityLow');
+  assert.deepEqual(cards(tasks.root).slice(0,3).map(n => n.props['data-task-id']), [7,6,5]);
   for (const expected of ['progress','done','todo']) { setTaskStatus({id:1,status:expected}); await nextTick(); assert.equal(taskState.tasks[0].status,expected); }
   for (const expected of ['low','medium','high']) { setTaskPriority({id:1,priority:expected}); await nextTick(); assert.equal(taskState.tasks[0].priority,expected); }
   await click(button(tasks.root, initialTasks[0].title));
@@ -116,7 +114,8 @@ const field = (root, id) => all(root, n => n.props?.id === id)[0];
 const model = async (root, id, value) => {
   const element = field(root, id);
   assert.ok(element, `Поле ${id} існує`);
-  element.props['onUpdate:modelValue'](value);
+  if (element.props['onUpdate:modelValue']) element.props['onUpdate:modelValue'](value);
+  else (element.props.onInput ?? element.props.onChange)({ target: { value } });
   await nextTick();
 };
 const submit = async root => {
@@ -136,6 +135,8 @@ test('T1–T2: порожня форма, коротка назва, помил�
   await submit(form.root);
   assert.equal(events.length, 0);
   assert.ok(text(form.root).includes('Вкажіть назву завдання.'));
+  assert.ok(!text(form.root).includes('Укажіть коректну дату завершення.'));
+  await model(form.root, 'tf4-date', '2027-02-30'); await submit(form.root);
   assert.ok(text(form.root).includes('Укажіть коректну дату завершення.'));
   assert.equal(field(form.root, 'tf4-title').props['aria-invalid'], true);
   assert.ok(field(form.root, 'tf4-title').props['aria-describedby'].includes('tf4-title-error'));
@@ -150,7 +151,7 @@ test('T1–T2: порожня форма, коротка назва, помил�
 
 test('T3, T6, T7: створення через форму, preview, скидання фільтрів і спільна статистика', async () => {
   reset(); const home = mount(Home); const tasks = mount(Tasks);
-  await click(button(tasks.root, 'У роботі')); await click(button(tasks.root, 'Високий'));
+  await model(tasks.root, 'tf5-status', 'progress'); await model(tasks.root, 'tf5-priority', 'high');
   await model(tasks.root, 'tf4-search', 'індикатор');
   assert.equal(cards(tasks.root).length, 1);
   await click(button(tasks.root, '+ Додати завдання'));
@@ -175,13 +176,13 @@ test('T3, T6, T7: створення через форму, preview, скида�
 
 test('T4–T5: редагування з тим самим ID та скасування без зміни оригіналу', async () => {
   reset(); const tasks = mount(Tasks); const original = { ...taskState.tasks[0] };
-  await click(button(cards(tasks.root)[0], 'Редагувати'));
+  await click(button(cards(tasks.root).find(n => n.props['data-task-id'] === 1), 'Редагувати'));
   assert.equal(field(tasks.root, 'tf4-title').props.value, original.title);
   await model(tasks.root, 'tf4-title', 'Змінена назва');
   assert.deepEqual({ ...taskState.tasks[0] }, original);
   await click(button(tasks.root, 'Скасувати'));
   assert.deepEqual({ ...taskState.tasks[0] }, original);
-  await click(button(cards(tasks.root)[0], 'Редагувати'));
+  await click(button(cards(tasks.root).find(n => n.props['data-task-id'] === 1), 'Редагувати'));
   assert.equal(field(tasks.root, 'tf4-title').props.value, original.title);
   await model(tasks.root, 'tf4-title', 'Збережена нова назва');
   await model(tasks.root, 'tf4-priority', 'low');
@@ -193,7 +194,7 @@ test('T4–T5: редагування з тим самим ID та скасув�
   assert.equal(taskState.tasks[0].dueDate, original.dueDate);
   assert.equal(taskState.tasks[0].priority, 'low');
   assert.equal(taskState.tasks[0].category, 'personal');
-  assert.ok(text(cards(tasks.root)[0]).includes('Особисте'));
+  assert.ok(text(cards(tasks.root).find(n => n.props['data-task-id'] === 1)).includes('Особисте'));
   const home = mount(Home); assert.ok(!button(cards(home.root)[0], 'Редагувати')); home.app.unmount();
   tasks.app.unmount(); reset();
 });
@@ -201,7 +202,7 @@ test('T4–T5: редагування з тим самим ID та скасув�
 test('Сховище: календар, межі, унікальність, ID і захист від некоректних даних', () => {
   reset(); const original = JSON.stringify(taskState.tasks);
   for (const invalid of [null, {}, validData({title:'А'}), validData({title:'А'.repeat(81)}),
-    validData({description:'А'.repeat(301)}), validData({status:'invalid'}), validData({priority:'invalid'}),
+    validData({description:'А'.repeat(501)}), validData({status:'invalid'}), validData({priority:'invalid'}),
     validData({category:'invalid'}), validData({dueDate:'2027-02-30'}), validData({dueDate:'2000-01-01'}),
     validData({title:'  '+initialTasks[0].title.toLocaleUpperCase('uk-UA')+'  '})]) {
     assert.equal(addTask(invalid), null);
@@ -217,7 +218,7 @@ test('Сховище: календар, межі, унікальність, ID �
   assert.equal(updateTask({id:999, ...validData()}), null);
   assert.equal(updateTask({...taskState.tasks[0], dueDate:'2000-01-01'}), null);
   assert.ok(updateTask({...taskState.tasks[0], title:'Зміна старого завдання'}));
-  const limits = addTask(validData({title:'А'.repeat(80), description:'А'.repeat(300)}));
+  const limits = addTask(validData({title:'А'.repeat(80), description:'А'.repeat(500)}));
   assert.ok(limits);
   taskState.tasks.push({...validData({title:'Запис із великим ID'}), id:250});
   assert.equal(addTask(validData()).id, 251);
@@ -234,7 +235,7 @@ test('Додаткові завдання: очищення, лічильник�
   await model(form.root, 'tf4-title', 'Тест');
   await model(form.root, 'tf4-description', 'Опис');
   assert.ok(text(form.root).includes('Залишилося: 76/80'));
-  assert.ok(text(form.root).includes('Залишилося: 296/300'));
+  assert.ok(text(form.root).includes('Залишилося: 496/500'));
   await model(form.root, 'tf4-status', 'done'); await model(form.root, 'tf4-category', 'personal');
   await click(button(form.root, 'Очистити форму'));
   for (const [id, expected] of Object.entries({title:'', description:'', status:'todo', priority:'medium', category:'study', date:''})) {
@@ -259,4 +260,147 @@ test('T8: повторна ініціалізація модуля віднов�
   assert.equal(freshTasks.length, 10);
   assert.deepEqual(freshTasks.map(task => task.title), initialTasks.map(task => task.title));
   reset();
+});
+
+const ids = root => cards(root).map(node => node.props['data-task-id']);
+const taskCard = (root, id) => cards(root).find(node => node.props['data-task-id'] === id);
+
+test('01–05, 12–13: пошук у назві й описі, комбіновані фільтри та скидання', async () => {
+  reset(); const tasks = mount(Tasks);
+  await model(tasks.root, 'tf4-search', '  ІНДИКАТОР  ');
+  assert.deepEqual(ids(tasks.root), [3]);
+  await model(tasks.root, 'tf4-search', 'кешування');
+  assert.deepEqual(ids(tasks.root), [7]);
+  await click(button(tasks.root, 'Очистити пошук'));
+  assert.equal(ids(tasks.root).length, 10);
+  assert.ok(!button(tasks.root, 'Очистити пошук'));
+  await model(tasks.root, 'tf5-status', 'done');
+  assert.deepEqual(ids(tasks.root), [9,6,2]);
+  await model(tasks.root, 'tf5-priority', 'high');
+  assert.deepEqual(ids(tasks.root), [9]);
+  await model(tasks.root, 'tf4-search', 'такого завдання немає');
+  assert.equal(ids(tasks.root).length, 0);
+  assert.ok(text(tasks.root).includes('За обраними фільтрами завдань не знайдено.'));
+  await click(button(tasks.root, 'Показати всі завдання'));
+  assert.deepEqual(ids(tasks.root), [10,9,8,7,6,5,4,3,2,1]);
+  assert.equal(field(tasks.root, 'tf5-sort').props.value, 'newest');
+  tasks.app.unmount(); reset();
+});
+
+test('06–07: усі режими сортування, українська абетка, порожні дати та незмінність масиву', async () => {
+  reset(); const tasks = mount(Tasks); const originalIds = taskState.tasks.map(task => task.id);
+  await model(tasks.root, 'tf5-sort', 'title');
+  const titles = cards(tasks.root).map(card => text(all(card, n => n.props?.class === 'tf3-select-task')[0]));
+  assert.deepEqual(titles, [...titles].sort((a,b) => a.localeCompare(b,'uk-UA')));
+  assert.ok(addTask(validData({title:'Без терміну', dueDate:''})));
+  assert.ok(addTask(validData({title:'Ще одне без терміну', dueDate:''})));
+  await nextTick();
+  for (const [sort, reverse] of [['dueDate',false], ['dueDateDesc',true]]) {
+    await model(tasks.root, 'tf5-sort', sort);
+    assert.deepEqual(ids(tasks.root).slice(-2), [12,11]);
+    const dates = ids(tasks.root).slice(0,-2).map(id => taskState.tasks.find(t => t.id === id).dueDate);
+    assert.deepEqual(dates, [...dates].sort((a,b) => reverse ? b.localeCompare(a) : a.localeCompare(b)));
+  }
+  await model(tasks.root, 'tf5-sort', 'oldest');
+  assert.deepEqual(ids(tasks.root).slice(0,10), originalIds);
+  assert.deepEqual(taskState.tasks.slice(0,10).map(task => task.id), originalIds);
+  await model(tasks.root, 'tf5-sort', 'status');
+  assert.deepEqual(ids(tasks.root).slice(0,3), [8,5,3]);
+  assert.deepEqual(taskState.tasks.slice(0,10).map(task => task.id), originalIds);
+  tasks.app.unmount(); reset();
+});
+
+test('08–11: видалення з підтвердженням, редагування і спільний стан', async () => {
+  reset(); const tasks = mount(Tasks); const home = mount(Home); const confirms = [];
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = { confirm: message => { confirms.push(message); return false; } };
+    await click(button(taskCard(tasks.root, 1), 'Видалити'));
+    assert.equal(taskState.tasks.length,10);
+    assert.ok(confirms[0].includes(initialTasks[0].title));
+    await click(button(taskCard(tasks.root,1), initialTasks[0].title));
+    await click(button(taskCard(tasks.root,1), 'Редагувати'));
+    globalThis.window.confirm = () => true;
+    await click(button(taskCard(tasks.root,1), 'Видалити'));
+    assert.equal(taskState.tasks.length,9);
+    assert.ok(!taskCard(tasks.root,1));
+    assert.equal(all(tasks.root,n => n.tag === 'form').length,0);
+    assert.ok(!text(tasks.root).includes('Обране завдання № 1'));
+    assert.deepEqual(all(home.root,n => n.tag === 'strong').map(n => Number(text(n))),[9,3,3,3]);
+    assert.equal(deleteTask(999),false);
+    assert.equal(taskState.tasks.length,9);
+    await click(button(taskCard(tasks.root,3), 'Завершити'));
+    assert.equal(taskState.tasks.find(t => t.id === 3).status,'done');
+    assert.deepEqual(all(home.root,n => n.tag === 'strong').map(n => Number(text(n))),[9,2,4,3]);
+    await click(button(taskCard(tasks.root,2), 'Редагувати'));
+    await model(tasks.root,'tf4-title','Оновлена назва навігації'); await submit(tasks.root);
+    await model(tasks.root,'tf4-search','Оновлена назва');
+    assert.deepEqual(ids(tasks.root),[2]);
+  } finally {
+    globalThis.window = previousWindow;
+    tasks.app.unmount(); home.app.unmount(); reset();
+  }
+});
+
+test('Додаткові 1–6: невиконані, статуси, відсоток вибірки, порожній список та відновлення', async () => {
+  reset(); const tasks = mount(Tasks); const home = mount(Home);
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = { confirm: () => true };
+    assert.ok(text(tasks.root).includes('Виконано у вибірці: 30%'));
+    await click(button(tasks.root, 'Тільки невиконані'));
+    assert.equal(ids(tasks.root).length,7);
+    assert.equal(button(tasks.root, 'Тільки невиконані').props['aria-pressed'],true);
+    assert.ok(text(tasks.root).includes('Виконано у вибірці: 0%'));
+    await model(tasks.root,'tf5-priority','high');
+    assert.deepEqual(ids(tasks.root),[3,1]);
+    await model(tasks.root,'tf5-status','done');
+    assert.equal(ids(tasks.root).length,0);
+    await click(button(tasks.root,'Скинути фільтри'));
+    assert.equal(button(tasks.root,'Тільки невиконані').props['aria-pressed'],false);
+    await model(tasks.root,'tf5-status','done');
+    assert.ok(text(tasks.root).includes('Виконано у вибірці: 100%'));
+    await click(button(tasks.root,'Скинути фільтри'));
+    for (const id of [...ids(tasks.root)]) await click(button(taskCard(tasks.root,id),'Видалити'));
+    assert.equal(taskState.tasks.length,0);
+    assert.ok(text(tasks.root).includes('Список завдань порожній'));
+    assert.ok(!text(tasks.root).includes('За обраними фільтрами завдань не знайдено.'));
+    assert.ok(text(tasks.root).includes('Виконано у вибірці: 0%'));
+    assert.deepEqual(all(home.root,n => n.tag === 'strong').map(n => Number(text(n))),[0,0,0,0]);
+    await click(button(tasks.root,'Створити перше завдання'));
+    await model(tasks.root,'tf4-title','Відновлення списку'); await submit(tasks.root);
+    assert.equal(taskState.tasks.length,1);
+    assert.equal(taskState.tasks[0].dueDate,'');
+    assert.ok(!text(tasks.root).includes('Список завдань порожній'));
+    assert.equal(deleteTask(String(taskState.tasks[0].id)),true);
+    const moduleUrl = new URL('../src/store/tasks.js', import.meta.url).href;
+    const { taskState: restored } = await import(`${moduleUrl}?after-delete`);
+    assert.equal(restored.tasks.length,10);
+  } finally {
+    globalThis.window = previousWindow;
+    tasks.app.unmount(); home.app.unmount(); reset();
+  }
+});
+
+test('TaskListControls: контрольовані Props та update-події без зміни вхідних даних', async () => {
+  const received=[];
+  const props = Object.freeze({ search:'тест', status:'all', priority:'all', sort:'newest', incomplete:false });
+  const controls=mount(TaskListControls, { ...props,
+    'onUpdate:search': value => received.push(['search',value]),
+    'onUpdate:status': value => received.push(['status',value]),
+    'onUpdate:priority': value => received.push(['priority',value]),
+    'onUpdate:sort': value => received.push(['sort',value]),
+    'onUpdate:incomplete': value => received.push(['incomplete',value]),
+    onReset: () => received.push(['reset']),
+  });
+  await model(controls.root,'tf4-search','новий');
+  await model(controls.root,'tf5-status','done');
+  await model(controls.root,'tf5-priority','high');
+  await model(controls.root,'tf5-sort','title');
+  await click(button(controls.root,'Тільки невиконані'));
+  await click(button(controls.root,'Очистити пошук'));
+  await click(button(controls.root,'Скинути фільтри'));
+  assert.deepEqual(received,[['search','новий'],['status','done'],['priority','high'],['sort','title'],['incomplete',true],['search',''],['reset']]);
+  assert.equal(props.search,'тест'); assert.equal(field(controls.root,'tf4-search').props.value,'тест');
+  controls.app.unmount();
 });

@@ -8,7 +8,7 @@ export const taskState = reactive({
 
 function normalizeTaskData(data, originalTask = null) {
   if (!data || typeof data !== 'object') return null
-  const candidate = { ...data, category: data.category ?? originalTask?.category ?? 'study' }
+  const candidate = { ...data, dueDate: data.dueDate ?? '', category: data.category ?? originalTask?.category ?? 'study' }
   if (Object.keys(validateTask(candidate, { originalTask, tasks: taskState.tasks })).length) return null
   return {
     title: candidate.title.trim(),
@@ -49,4 +49,11 @@ export function setTaskPriority({ id, priority }) {
   if (!Object.hasOwn(priorityLabels, priority)) return
   const task = taskState.tasks.find(item => item.id === id)
   if (task) task.priority = priority
+}
+
+export function deleteTask(id) {
+  const index = taskState.tasks.findIndex(task => task.id === Number(id))
+  if (index === -1) return false
+  taskState.tasks.splice(index, 1)
+  return true
 }

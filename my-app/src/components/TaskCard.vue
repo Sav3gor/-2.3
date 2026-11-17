@@ -4,7 +4,7 @@ import StatusBadge from './StatusBadge.vue'
 import PriorityBadge from './PriorityBadge.vue'
 import { categoryLabels } from '../utils/task-validation.js'
 const props = defineProps({ task: { type: Object, required: true }, editable: { type: Boolean, default: false } })
-const emit = defineEmits(['status-change', 'priority-change', 'task-select', 'edit'])
+const emit = defineEmits(['status-change', 'priority-change', 'task-select', 'edit', 'delete'])
 const statusSequence = ['todo', 'progress', 'done']
 const prioritySequence = ['low', 'medium', 'high']
 const statusActionText = computed(() => ({
@@ -42,7 +42,7 @@ function changePriority() {
         @click="emit('task-select', { id: task.id })">{{ task.title }}</button></h3>
        <StatusBadge :status="task.status" />
      </div>
-     <p class="tf3-card-description">{{ task.description }}</p>
+     <p class="tf3-card-description">{{ task.description || 'Без опису' }}</p>
      <div class="tf3-card-meta">
        <div class="tf3-meta-item">
         <span class="tf3-meta-label">Пріоритет:</span>
@@ -58,6 +58,8 @@ function changePriority() {
        @click="changePriority">Змінити пріоритет</button>
       <button v-if="editable" type="button" class="tf3-action"
         @click="emit('edit', task.id)">Редагувати</button>
+      <button v-if="editable" type="button" class="tf3-action tf5-danger"
+        @click="emit('delete', task.id)">Видалити</button>
     </div>
    </f7-card-content>
  </f7-card>
