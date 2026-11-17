@@ -4,6 +4,7 @@ export const tasks = [
     title: 'Створити структуру проєкту',
     description: 'Підготувати каталоги та файли TaskFlow',
     status: 'done',
+    completed: true,
     priority: 'high',
   },
   {
@@ -11,6 +12,7 @@ export const tasks = [
     title: 'Налаштувати Framework7',
     description: 'Підключити мобільні компоненти інтерфейсу',
     status: 'done',
+    completed: true,
     priority: 'medium',
   },
   {
@@ -18,6 +20,7 @@ export const tasks = [
     title: 'Реалізувати картку завдання',
     description: 'Створити компонент TaskCard',
     status: 'done',
+    completed: true,
     priority: 'medium',
   },
   {
@@ -25,6 +28,31 @@ export const tasks = [
     title: 'Перевірити PWA',
     description: 'Зібрати та встановити застосунок',
     status: 'todo',
+    completed: false,
+    priority: 'low',
+  },
+    {
+    id: 5,
+    title: 'Налаштувати нижню навігацію',
+    description: 'Додати переходи між сторінками TaskFlow',
+    status: 'done',
+    completed: true,
+    priority: 'high',
+  },
+  {
+    id: 6,
+    title: 'Перевірити production-збірку',
+    description: 'Запустити npm run build та перевірити результат',
+    status: 'progress',
+    completed: false,
+    priority: 'medium',
+  },
+  {
+    id: 7,
+    title: 'Підготувати звіт КП 2/4',
+    description: 'Оформити результати роботи та скріншоти',
+    status: 'todo',
+    completed: false,
     priority: 'low',
   },
 ];
