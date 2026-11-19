@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse, compileScript } from '@vue/compiler-sfc';
 import { createRenderer, h, nextTick } from 'vue';
+import { createPinia, setActivePinia, storeToRefs } from 'pinia';
 
 registerHooks({
   resolve(specifier, context, next) {
@@ -17,7 +18,13 @@ registerHooks({
     return { format: 'module', source: compileScript(descriptor, { id: url, inlineTemplate: true, templateOptions: { compilerOptions: { hoistStatic: false } } }).content, shortCircuit: true };
   },
 });
-const { taskState, addTask, updateTask, deleteTask, setTaskStatus, setTaskPriority } = await import('../src/store/tasks.js');
+const { useTasksStore } = await import('../src/store/tasks.js');
+const { useProjectsStore } = await import('../src/store/projects.js');
+const testPinia = createPinia();
+setActivePinia(testPinia);
+const taskState = useTasksStore(testPinia);
+const projectStore = useProjectsStore(testPinia);
+const { addTask, updateTask, deleteTask, setTaskStatus, setTaskPriority } = taskState;
 const { default: initialTasks } = await import('../src/data/tasks.js');
 const { default: TaskListControls } = await import('../src/components/TaskListControls.vue');
 const { default: TaskForm } = await import('../src/components/TaskForm.vue');
@@ -54,6 +61,7 @@ const renderer = createRenderer({
 function mount(component, props = {}) {
   const root = { children: [] };
   const app = renderer.createApp(component, props);
+  app.use(testPinia);
   for (const name of ['page','navbar','nav-right','link','button','card','card-content','toolbar','icon']) {
     app.component(`f7-${name}`, { setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()) });
   }
@@ -119,12 +127,12 @@ const model = async (root, id, value) => {
   await nextTick();
 };
 const submit = async root => {
-  const form = all(root, n => n.tag === 'form')[0];
+  const form = all(root, n => n.tag === 'form' && n.props?.class === 'tf4-form')[0];
   assert.ok(form, 'Форма існує');
   await form.props.onSubmit({ preventDefault() {} });
   await nextTick();
 };
-const reset = () => { taskState.tasks = initialTasks.map(task => ({ ...task, category: 'study' })); };
+const reset = () => { setActivePinia(testPinia); taskState.$reset(); projectStore.$reset(); };
 const future = localDate(new Date(new Date().getFullYear() + 1, 5, 15));
 const validData = (overrides = {}) => ({ title: 'Підготувати презентацію', description: 'Слайди до захисту',
   status: 'todo', priority: 'high', category: 'work', dueDate: future, ...overrides });
@@ -168,7 +176,7 @@ test('T3, T6, T7: створення через форму, preview, скида�
   assert.equal(taskState.tasks.at(-1).category, 'work');
   assert.equal(cards(tasks.root).length, 11);
   assert.equal(field(tasks.root, 'tf4-search').props.value, '');
-  assert.equal(all(tasks.root, n => n.tag === 'form').length, 0);
+  assert.equal(all(tasks.root, n => n.tag === 'form' && n.props?.class === 'tf4-form').length, 0);
   assert.deepEqual(all(home.root, n => n.tag === 'strong').map(n => Number(text(n))), [11,3,4,4]);
   assert.ok(text(tasks.root).includes('створено.'));
   home.app.unmount(); tasks.app.unmount(); reset();
@@ -255,7 +263,8 @@ test('Додаткові завдання: очищення, лічильник�
 test('T8: повторна ініціалізація модуля відновлює початкові дані', async () => {
   reset(); assert.ok(addTask(validData())); assert.equal(taskState.tasks.length, 11);
   const moduleUrl = new URL('../src/store/tasks.js', import.meta.url).href;
-  const { taskState: freshState } = await import(`${moduleUrl}?fresh-session`);
+  const { useTasksStore: freshFactory } = await import(`${moduleUrl}?fresh-session`);
+  const freshState = freshFactory(createPinia());
   const freshTasks = freshState.tasks;
   assert.equal(freshTasks.length, 10);
   assert.deepEqual(freshTasks.map(task => task.title), initialTasks.map(task => task.title));
@@ -324,7 +333,7 @@ test('08–11: видалення з підтвердженням, редагу�
     await click(button(taskCard(tasks.root,1), 'Видалити'));
     assert.equal(taskState.tasks.length,9);
     assert.ok(!taskCard(tasks.root,1));
-    assert.equal(all(tasks.root,n => n.tag === 'form').length,0);
+    assert.equal(all(tasks.root,n => n.tag === 'form' && n.props?.class === 'tf4-form').length,0);
     assert.ok(!text(tasks.root).includes('Обране завдання № 1'));
     assert.deepEqual(all(home.root,n => n.tag === 'strong').map(n => Number(text(n))),[9,3,3,3]);
     assert.equal(deleteTask(999),false);
@@ -374,7 +383,8 @@ test('Додаткові 1–6: невиконані, статуси, відсо
     assert.ok(!text(tasks.root).includes('Список завдань порожній'));
     assert.equal(deleteTask(String(taskState.tasks[0].id)),true);
     const moduleUrl = new URL('../src/store/tasks.js', import.meta.url).href;
-    const { taskState: restored } = await import(`${moduleUrl}?after-delete`);
+    const { useTasksStore: restoredFactory } = await import(`${moduleUrl}?after-delete`);
+    const restored = restoredFactory(createPinia());
     assert.equal(restored.tasks.length,10);
   } finally {
     globalThis.window = previousWindow;
@@ -403,4 +413,118 @@ test('TaskListControls: контрольовані Props та update-події 
   assert.deepEqual(received,[['search','новий'],['status','done'],['priority','high'],['sort','title'],['incomplete',true],['search',''],['reset']]);
   assert.equal(props.search,'тест'); assert.equal(field(controls.root,'tf4-search').props.value,'тест');
   controls.app.unmount();
+});
+
+const submitProject = async root => {
+  const form = all(root, node => node.tag === 'form' && node.props?.class === 'tf6-project-form')[0];
+  await form.props.onSubmit({ preventDefault() {} });
+  await nextTick();
+};
+
+test('Pinia 02–05: getters, каталог, створення та дублікати проєктів', async () => {
+  reset();
+  assert.deepEqual([taskState.totalTasks,taskState.progressTasks,taskState.completedTasks], [10,3,3]);
+  assert.equal(projectStore.projectCount,3);
+  assert.deepEqual(projectStore.projects.map(p => p.title), ['Загальні','Навчання','Особисті']);
+  assert.ok(taskState.tasks.every(task => task.projectId === 'general'));
+  assert.equal(projectStore.projectStats[0].total,10);
+  assert.equal(projectStore.projectStats[0].incomplete,7);
+  assert.equal(projectStore.projectStats[0].completionPercent,30);
+  assert.equal(projectStore.projectStats[1].completionPercent,0);
+  assert.equal(projectStore.addProject('А'),null);
+  assert.equal(projectStore.addProject('А'.repeat(41)),null);
+  const tasks=mount(Tasks);
+  await model(tasks.root,'tf6-project-title','  Лабораторні  '); await submitProject(tasks.root);
+  const project=projectStore.projects.at(-1);
+  assert.equal(project.title,'Лабораторні');
+  assert.equal(taskState.selectedProject,project.id);
+  assert.equal(field(tasks.root,'tf6-project-filter').props.value,project.id);
+  assert.ok(text(tasks.root).includes('Лабораторні'));
+  await model(tasks.root,'tf6-project-title','ЛАБОРАТОРНІ'); await submitProject(tasks.root);
+  assert.equal(projectStore.projectCount,4);
+  assert.ok(text(tasks.root).includes('Назва має містити 3–40 символів'));
+  tasks.app.unmount(); reset();
+});
+
+test('Pinia 06–09: завдання з проєктом, комбінована фільтрація та зміна проєкту', async () => {
+  reset(); const project=projectStore.addProject('Лабораторні');
+  const tasks=mount(Tasks); const home=mount(Home);
+  await model(tasks.root,'tf6-project-filter',project.id);
+  await click(button(tasks.root,'+ Додати завдання'));
+  await model(tasks.root,'tf4-title','Завдання для лабораторної');
+  assert.ok(text(field(tasks.root,'tf6-task-project')).includes('Лабораторні'));
+  await model(tasks.root,'tf4-status','progress');
+  await model(tasks.root,'tf4-priority','high');
+  await submit(tasks.root);
+  const task=taskState.tasks.at(-1);
+  assert.equal(task.projectId,project.id);
+  assert.ok(text(taskCard(tasks.root,task.id)).includes('Проєкт: Лабораторні'));
+  assert.equal(projectStore.projectStats.find(p=>p.id===project.id).total,1);
+  assert.ok(text(home.root).includes('Лабораторні'));
+  assert.equal(taskState.totalTasks,11);
+  await model(tasks.root,'tf6-project-filter',project.id);
+  await model(tasks.root,'tf5-status','progress');
+  await model(tasks.root,'tf5-priority','high');
+  await model(tasks.root,'tf4-search','лабораторної');
+  assert.deepEqual(ids(tasks.root),[task.id]);
+  await click(button(taskCard(tasks.root,task.id),'Редагувати'));
+  await model(tasks.root,'tf6-task-project','personal'); await submit(tasks.root);
+  assert.equal(task.projectId,'personal');
+  assert.equal(projectStore.projectStats.find(p=>p.id===project.id).total,0);
+  assert.equal(projectStore.projectStats.find(p=>p.id==='personal').total,1);
+  await model(tasks.root,'tf6-project-filter',project.id);
+  assert.equal(ids(tasks.root).length,0);
+  const normalized=addTask(validData({ title:'Невідомий проєкт',projectId:'missing' }));
+  assert.equal(normalized.projectId,'general');
+  tasks.app.unmount();home.app.unmount();reset();
+});
+
+test('Pinia 10, 13–15: storeToRefs, збереження фільтрів при перемиканні та новий сеанс', async () => {
+  reset();const tasks=mount(Tasks);
+  const { totalTasks, selectedProject, visibleTasks } = storeToRefs(taskState);
+  await model(tasks.root,'tf6-project-filter','study');
+  await model(tasks.root,'tf5-status','done');
+  await model(tasks.root,'tf5-sort','title');
+  await click(button(tasks.root,'Лише без терміну'));
+  assert.equal(selectedProject.value,'study');assert.equal(visibleTasks.value.length,0);
+  tasks.app.unmount(); const home=mount(Home);home.app.unmount();
+  const reopened=mount(Tasks);
+  assert.equal(field(reopened.root,'tf6-project-filter').props.value,'study');
+  assert.equal(field(reopened.root,'tf5-status').props.value,'done');
+  assert.equal(field(reopened.root,'tf5-sort').props.value,'title');
+  assert.equal(button(reopened.root,'Лише без терміну').props['aria-pressed'],true);
+  await click(button(reopened.root,'Скинути фільтри'));
+  assert.equal(selectedProject.value,'all');assert.equal(taskState.withoutDueDate,false);
+  addTask(validData());assert.equal(totalTasks.value,11);
+  projectStore.addProject('Тестовий проєкт');
+  const fresh=createPinia();
+  assert.equal(useTasksStore(fresh).totalTasks,10);
+  assert.equal(useProjectsStore(fresh).projectCount,3);
+  reopened.app.unmount();reset();
+});
+
+test('Додаткові 1–5: проєктна статистика, групова дія і фільтр без терміну', async () => {
+  reset();const project=projectStore.addProject('Робочий проєкт');
+  const first=addTask(validData({title:'Перше проєктне',projectId:project.id,dueDate:''}));
+  addTask(validData({title:'Друге проєктне',projectId:project.id,status:'done'}));
+  const tasks=mount(Tasks);const home=mount(Home);const oldWindow=globalThis.window;
+  const actions=[];const stop=taskState.$onAction(({name})=>actions.push(name));
+  try {
+    assert.equal(taskState.startCurrentProjectTasks(),0);
+    await model(tasks.root,'tf6-project-filter',project.id);
+    await click(button(tasks.root,'Лише без терміну'));
+    assert.deepEqual(ids(tasks.root),[first.id]);
+    assert.equal(projectStore.projectStats.find(p=>p.id===project.id).completionPercent,50);
+    globalThis.window={confirm:()=>false};
+    await click(button(tasks.root,'Усі завдання проєкту — у роботу'));
+    assert.equal(first.status,'todo');
+    globalThis.window.confirm=message=>{ assert.ok(message.includes(project.title));return true; };
+    await click(button(tasks.root,'Усі завдання проєкту — у роботу'));
+    assert.ok(taskState.tasks.filter(t=>t.projectId===project.id).every(t=>t.status==='progress'));
+    assert.equal(taskState.tasks.find(t=>t.id===2).status,'done');
+    assert.equal(projectStore.projectStats.find(p=>p.id===project.id).completionPercent,0);
+    assert.equal(projectStore.projectStats.find(p=>p.id===project.id).incomplete,2);
+    assert.ok(actions.includes('startCurrentProjectTasks'));
+    assert.ok(text(home.root).includes('Робочий проєкт'));
+  } finally {stop();globalThis.window=oldWindow;tasks.app.unmount();home.app.unmount();reset();}
 });

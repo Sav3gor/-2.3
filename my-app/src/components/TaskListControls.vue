@@ -5,9 +5,12 @@ defineProps({
   status: { type: String, default: 'all' },
   priority: { type: String, default: 'all' },
   sort: { type: String, default: 'newest' },
+  project: { type: String, default: 'all' },
+  projects: { type: Array, default: () => [] },
+  withoutDueDate: { type: Boolean, default: false },
   incomplete: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:search', 'update:status', 'update:priority', 'update:sort', 'update:incomplete', 'reset'])
+const emit = defineEmits(['update:search', 'update:status', 'update:priority', 'update:sort', 'update:incomplete', 'update:project', 'update:withoutDueDate', 'reset'])
 </script>
 
 <template>
@@ -30,6 +33,12 @@ const emit = defineEmits(['update:search', 'update:status', 'update:priority', '
           <option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option>
         </select>
       </label>
+      <label for="tf6-project-filter">Проєкт
+        <select id="tf6-project-filter" :value="project" @change="emit('update:project', $event.target.value)">
+          <option value="all">Усі проєкти</option>
+          <option v-for="item in projects" :key="item.id" :value="item.id">{{ item.title }}</option>
+        </select>
+      </label>
       <label for="tf5-sort">Сортування
         <select id="tf5-sort" :value="sort" @change="emit('update:sort', $event.target.value)">
           <option value="newest">Спочатку нові</option>
@@ -46,6 +55,8 @@ const emit = defineEmits(['update:search', 'update:status', 'update:priority', '
     <div class="tf5-actions tf5-controls-actions">
       <button type="button" class="tf5-btn" :aria-pressed="incomplete"
         @click="emit('update:incomplete', !incomplete)">Тільки невиконані</button>
+      <button type="button" class="tf5-btn" :aria-pressed="withoutDueDate"
+        @click="emit('update:withoutDueDate', !withoutDueDate)">Лише без терміну</button>
       <button v-if="search.length" type="button" class="tf5-btn"
         @click="emit('update:search', '')">Очистити пошук</button>
       <button type="button" class="tf5-btn" @click="emit('reset')">Скинути фільтри</button>

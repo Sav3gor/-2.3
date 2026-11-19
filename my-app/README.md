@@ -87,3 +87,35 @@ npx wrangler deploy --message "Complete KP 2-6 TaskFlow"
 npm run build --prefix my-app
 npx wrangler deploy --message "Complete KP 2-8 TaskFlow"
 ```
+
+## КП 2.9 — Pinia та проєкти
+
+Код перенесено на useTasksStore та useProjectsStore. Завдання, проєкти, умови списку
+та getters статистики належать Pinia; стан форми залишається локальним.
+Додано створення проєктів, прив’язку, фільтр, статистику на обох сторінках,
+групове переведення проєкту в роботу з підтвердженням і «Лише без терміну».
+Категорії та можливості КП 2.8 збережено. Постійне збереження не реалізується.
+
+Спочатку встановіть залежності з каталогу my-app:
+
+```bash
+npm install pinia @vue/devtools-api
+npm test
+npm run build
+```
+
+Встановлено pinia 4.1.0 та @vue/devtools-api 8.2.1. Усі **16 автоматичних перевірок**
+та production-збірка проходять. Тести використовують справжню Pinia й тестовий Vue
+renderer; оболонки Framework7 та window.confirm підмінені. Візуальний вигляд,
+реальну навігацію й Devtools потрібно перевірити в браузері та додати скріншоти.
+Додаткові функціональні пункти 1–5 реалізовано; пункт 6 з перевіркою через
+Vue Devtools залишається для браузерної перевірки.
+
+Звіт: [../docs/report-kp-2-9.md](../docs/report-kp-2-9.md).
+
+Публікація КП 2.9 із кореня репозиторію на чинний Worker `2-3`:
+
+```bash
+npm run build --prefix my-app
+npx wrangler deploy --message "Complete KP 2-9 TaskFlow"
+```

@@ -127,3 +127,18 @@
 .tf5-btn:focus-visible,.tf5-controls-grid input:focus-visible,.tf5-controls-grid select:focus-visible {
   outline: 2px solid #83e9ff; outline-offset: 3px;
 }
+
+/* Каталог проєктів та групові операції. */
+.tf6-project-list { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.tf6-project-pill { display: grid; gap: 7px; padding: 13px 15px; border: 1px solid #385a7a;
+  border-radius: 12px; background: #1a344f; color: #e4f2ff; font-size: 15px; overflow-wrap: anywhere; }
+.tf6-project-pill span { color: #b8d0e7; font-size: 12px; }
+.tf6-project-form { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 12px; max-width: 680px; }
+.tf6-project-form label { display: grid; gap: 8px; color: #d7e4f5; font-size: 13px; }
+.tf6-project-form input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px;
+  border: 1px solid #39526f; border-radius: 9px; color: #f0f7ff; background: #0c1728; font: inherit; }
+.tf6-project-form input:focus-visible { outline: 2px solid #83e9ff; outline-offset: 3px; }
+.tf6-project-form input[aria-invalid="true"] { border-color: #ed7184; }
+.tf6-bulk-action { margin: 20px 0; }
+.tf5-btn:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 680px) { .tf6-project-form { grid-template-columns: 1fr; } }

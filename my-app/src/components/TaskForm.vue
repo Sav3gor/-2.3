@@ -5,10 +5,12 @@ import { categoryLabels, localDate, priorityLabels, statusLabels, validateTask }
 const props = defineProps({
   task: { type: Object, default: null },
   tasks: { type: Array, default: () => [] },
+  projects: { type: Array, default: () => [{ id: 'general', title: 'Загальні' }] },
+  defaultProjectId: { type: String, default: 'general' },
 })
 const emit = defineEmits(['save', 'cancel'])
 const defaults = () => ({
-  title: '', description: '', status: 'todo', priority: 'medium', category: 'study', dueDate: '',
+  title: '', description: '', status: 'todo', priority: 'medium', category: 'study', dueDate: '', projectId: props.defaultProjectId,
 })
 // Локальна копія: введення та скасування не змінюють завдання у сховищі.
 const form = reactive({ ...defaults(), ...Object.fromEntries(
@@ -17,7 +19,11 @@ const form = reactive({ ...defaults(), ...Object.fromEntries(
 const formElement = ref(null)
 const showErrors = ref(false)
 const isEditing = computed(() => props.task !== null)
-const errors = computed(() => validateTask(form, { originalTask: props.task, tasks: props.tasks }))
+const errors = computed(() => {
+  const result = validateTask(form, { originalTask: props.task, tasks: props.tasks })
+  if (!props.projects.some(project => project.id === form.projectId)) result.projectId = 'Оберіть проєкт зі списку.'
+  return result
+})
 
 async function submitForm() {
   showErrors.value = true
@@ -99,11 +105,21 @@ function clearForm() {
         <small id="tf4-date-help">{{ isEditing ? 'Попередній термін можна залишити; новий має бути не раніше сьогодні.' : 'Необов’язково. Сьогоднішня або майбутня дата.' }}</small>
         <p v-if="showErrors && errors.dueDate" id="tf4-date-error" class="tf4-error" role="alert">{{ errors.dueDate }}</p>
       </div>
+      <div class="tf4-field tf4-field--wide">
+        <label for="tf6-task-project">Проєкт *</label>
+        <select id="tf6-task-project" v-model="form.projectId" required
+          :aria-invalid="showErrors && !!errors.projectId"
+          :aria-describedby="showErrors && errors.projectId ? 'tf6-task-project-error' : undefined">
+          <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.title }}</option>
+        </select>
+        <p v-if="showErrors && errors.projectId" id="tf6-task-project-error" class="tf4-error" role="alert">{{ errors.projectId }}</p>
+      </div>
       <div class="tf4-preview tf4-field--wide" aria-live="polite">
         <strong>Попередній перегляд</strong>
         <p>{{ form.title || 'Назва нового завдання' }}</p>
         <p class="tf4-preview-description">{{ form.description || 'Опис не додано' }}</p>
         <span>{{ statusLabels[form.status] }} · {{ priorityLabels[form.priority] }} · {{ categoryLabels[form.category] }}</span>
+        <div class="tf4-hint">Проєкт: {{ projects.find(project => project.id === form.projectId)?.title ?? 'Не обрано' }}</div>
         <div class="tf4-hint">Термін: {{ form.dueDate || 'Не вказано' }}</div>
       </div>
       <div class="tf4-actions tf4-field--wide">
