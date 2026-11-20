@@ -1,0 +1,16 @@
+.tf7-persistence { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  margin: 20px 0; padding: 16px 18px; border: 1px solid #31516e; border-radius: 12px;
+  color: #d6e9fa; background: #142b42; font-size: 13px; line-height: 1.6; }
+.tf7-persistence strong { color: inherit; }
+.tf7-persistence--saved { border-color: #3c806b; background: #153c32; color: #baf4db; }
+.tf7-persistence--saving,.tf7-persistence--loading { border-color: #46769b; }
+.tf7-persistence--error { border-color: #bb6275; background: #492234; color: #ffd0db; }
+.tf7-time { flex-basis: 100%; font-size: 12px; opacity: .85; }
+.tf7-backup-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.tf7-file-input { display: none; }
+.tf7-settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 20px 0; }
+.tf7-settings-item { padding: 20px; border: 1px solid #31516e; border-radius: 12px; background: #142237; }
+.tf7-settings-item span { display: block; margin-bottom: 8px; color: #adbed3; }
+.tf7-settings-item strong { color: #edf4ff; font-size: 28px; }
+@media (max-width: 520px) { .tf7-persistence { flex-direction: column; align-items: flex-start; }
+  .tf7-settings-grid { grid-template-columns: 1fr; } }

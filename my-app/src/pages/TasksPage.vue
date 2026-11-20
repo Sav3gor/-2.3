@@ -9,9 +9,23 @@ import TaskCounter from '../components/TaskCounter.vue'
 import TaskSelection from '../components/TaskSelection.vue'
 import { useTasksStore } from '../store/tasks.js'
 import { useProjectsStore } from '../store/projects.js'
+import { persistenceState, retrySave, importSnapshot, waitForPersistence } from '../services/persistence.js'
+import { createExport, parseImport } from '../services/snapshot.js'
+import '../css/persistence.css'
 import '../css/task-components.css'
 import '../css/task-form.css'
 import '../css/task-list.css'
+const importInput = ref(null)
+const backupMessage = ref('')
+const backupError = ref(false)
+const saveMessage = computed(() => ({
+  loading: 'Завантаження локальних даних…',
+  saving: 'Збереження змін…',
+  saved: 'Усі зміни збережено в цьому браузері.',
+  error: persistenceState.error || 'Помилка локального збереження.',
+})[persistenceState.status])
+const savedTime = computed(() => persistenceState.lastSavedAt
+  ? new Date(persistenceState.lastSavedAt).toLocaleString('uk-UA') : '')
 const taskStore = useTasksStore()
 const projectStore = useProjectsStore()
 const { tasks, searchText: searchQuery, selectedStatus, selectedPriority, selectedProject,
@@ -82,10 +96,36 @@ function startProjectTasks() {
   saveFailed.value = false
   feedback.value = `Оновлено завдань у проєкті «${title}»: ${count}.`
 }
+function exportJson() {
+  try {
+    const text = createExport({ tasks: taskStore.tasks, projects: projectStore.projects, nextProjectId: projectStore.nextProjectId })
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = url; link.download = `taskflow-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    backupError.value = false; backupMessage.value = 'JSON із поточними завданнями та проєктами підготовлено для завантаження.'
+  } catch (error) { backupError.value = true; backupMessage.value = error.message }
+}
+async function importJson(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  try {
+    if (file.size > 5 * 1024 * 1024) throw new Error('Файл завеликий. Максимальний розмір — 5 МБ.')
+    const data = parseImport(await file.text())
+    if (!window.confirm(`Замінити всі поточні завдання (${taskStore.tasks.length}) і проєкти (${projectStore.projects.length}) даними з JSON?`)) return
+    importSnapshot(data)
+    cancelForm(); selectedTaskId.value = null
+    const saved = await waitForPersistence()
+    backupError.value = !saved
+    backupMessage.value = saved ? 'Дані імпортовано й збережено в цьому браузері.' : 'Дані імпортовано в пам’ять, але запис не завершено. Повторіть збереження.'
+  } catch (error) { backupError.value = true; backupMessage.value = error.message }
+}
 </script>
 <template>
   <f7-page name="tasks" class="tf3-page">
-    <f7-navbar title="Мої завдання" />
+    <f7-navbar title="Мої завдання"><f7-nav-right><f7-link href="/settings/">Налаштування</f7-link></f7-nav-right></f7-navbar>
     <div class="tf3-container">
      <section class="tf3-hero">
       <div class="tf3-eyebrow">TASKFLOW / TASK MANAGER</div>
@@ -93,6 +133,18 @@ function startProjectTasks() {
       <p>Створюйте, редагуйте та впорядковуйте свої завдання.</p>
       <button type="button" class="tf4-new-task" @click="openForm()">+ Додати завдання</button>
      </section>
+     <section class="tf7-persistence" :class="`tf7-persistence--${persistenceState.status}`" role="status" aria-live="polite">
+       <strong>Локальне збереження</strong><span>{{ saveMessage }}</span>
+       <span v-if="savedTime" class="tf7-time">Останній успішний запис: {{ savedTime }}</span>
+       <button v-if="persistenceState.canRetry" type="button" class="tf5-btn" @click="retrySave">Повторити збереження</button>
+     </section>
+     <div class="tf7-backup-actions">
+       <button class="tf5-btn" type="button" @click="exportJson">Експорт JSON</button>
+       <button class="tf5-btn" type="button" :disabled="persistenceState.status === 'loading' || (persistenceState.status === 'error' && !persistenceState.canRetry)"
+         @click="importInput.click()">Імпорт JSON</button>
+       <input ref="importInput" class="tf7-file-input" type="file" accept="application/json,.json" aria-label="Файл резервної копії" @change="importJson" />
+     </div>
+     <p v-if="backupMessage" :class="backupError ? 'tf5-error' : 'tf4-feedback'" role="status">{{ backupMessage }}</p>
      <section class="tf5-panel" aria-label="Проєкти">
        <h2>Мої проєкти</h2>
        <div class="tf6-project-list">
